@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8" />
+
+  <title>finger tapping task (FTT)</title>
+
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta http-equiv="Content-Script-Type" content="application/javascript" />
+
+  <style type="text/css">
+   #elementsInWaiting {
+     display: none;
+   }
+
+   span.inputDesc {
+     font-size: 80%;
+     font-style: italic;
+   }
+
+   span.inputDesc tt {
+     font-style: normal;
+   }
+
+   .containsError {
+     background: #FFF;
+     color: #900;
+   }
+
+   .containsError input {
+     background: #FEE;
+     color: #900;
+   }
+
+   #participantView-sequenceBox {
+     border: 3px solid #000;
+     background: #FFF;
+     color: #000;
+     text-align: center;
+     padding: 2em;
+   }
+
+   #sequenceDisplay {
+     font-size: 2em;
+     font-family: monospace;
+     padding: 2em;
+   }
+
+   #sequenceProgressCanvas {
+     padding: 2em;
+     max-width: 90%;
+   }
+
+   #leftHandImg.hidden, #rightHandImg.hidden {
+     display: none;
+   }
+
+   #participantView-statusDisplay {
+     position: fixed;
+     bottom: 0px;
+     right: 0px;
+     color: #999;
+     text-align: right;
+     padding: 0.5em;
+   }
+   
+   div#participantView-rest {
+     position: fixed;
+     left: 0;
+     right: 0;
+     top: 0;
+     bottom: 0;
+     width: 100vw;
+     height: 100vh;
+     background-color: #EEE;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+   }
+   div#participantView-rest.hidden {
+     display: none;
+   }
+   div#participantView-rest-counter {
+     border: 1px solid #000;
+     background: #FFF;
+     font-size: 2em;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     width: 5em;
+     height: 5em;
+   }
+
+   #copyrightNotice {
+     margin-top: 3em;
+     font-size: 80%;
+   }
+  </style>
+
+  <script type="application/javascript">
+   // <![CDATA[
+    const settings = {};
+    let currBlockNum = 0;
+    let currBlockSeqCount = 0;
+    let currSeq = '';
+    const blockSeqCounts = [];
+
+    function updateInputsFromUrl() {
+      const initialSearchParams = new URLSearchParams(document.location.search);
+      document.getElementById('sequenceInput').value =
+        (initialSearchParams.get('sequence') || '');
+      document.getElementById('numBlocksInput').value =
+        (initialSearchParams.get('numBlocks') || '');
+      document.getElementById('tappingSecsInput').value =
+        (initialSearchParams.get('tappingSecs') || '');
+      document.getElementById('restSecsInput').value =
+        (initialSearchParams.get('restSecs') || '');
+      if (initialSearchParams.get('hand') === 'right') {
+        document.getElementById('rightHandInput').checked = true;
+      } else {
+        document.getElementById('leftHandInput').checked = true;
+      }
+    }
+
+    function validateTextInput(input, validPrefixPat, validCompletePat) {
+      const value = input.value;
+
+      const isEmpty = value === '';
+      const isValidPrefix = validPrefixPat.test(value);
+      const isValid = validCompletePat.test(value);
+      const hasFocus = document.activeElement == input;
+
+      const shouldRedden =
+        ! isValidPrefix
+        || ! isEmpty && ! isValid && ! hasFocus;
+
+      input.parentNode.classList.toggle('containsError', shouldRedden);
+
+      return isValid;
+    }
+
+    function validateInputsAndUpdateSettings() {
+      let hasAll = true;
+
+      const sequenceInput = document.getElementById('sequenceInput');
+      if (validateTextInput(sequenceInput, /^[1-4]{0,5}$/, /^[1-4]{5}$/)) {
+        settings.sequence = sequenceInput.value;
+      } else {
+        hasAll = false;
+      }
+
+      const numBlocksInput = document.getElementById('numBlocksInput');
+      if (validateTextInput(numBlocksInput, /^(?!0)\d{0,2}$/, /^[1-9]\d?$/)) {
+        settings.numBlocks = numBlocksInput.value;
+      } else {
+        hasAll = false;
+      }
+
+      const tappingSecsInput = document.getElementById('tappingSecsInput');
+      if (validateTextInput(
+            tappingSecsInput, /^(?!0)\d{0,3}$/, /^[1-9]\d?\d?$/)
+      ) {
+        settings.tappingSecs = tappingSecsInput.value;
+      } else {
+        hasAll = false;
+      }
+
+      const restSecsInput = document.getElementById('restSecsInput');
+      if (validateTextInput(restSecsInput, /^(?!0)\d{0,3}$/, /^[1-9]\d?\d?$/)) {
+        settings.restSecs = restSecsInput.value;
+      } else {
+        hasAll = false;
+      }
+
+      settings.hand =
+        document.getElementById('rightHandInput').checked ? 'right' : 'left';
+
+      document.getElementById('submitSettingsButton').disabled = ! hasAll;
+    }
+
+    function updateUrlFromSettings() {
+      const queryArr = [];
+
+      if (settings.sequence) {
+        queryArr.push('sequence=' + settings.sequence);
+      }
+      if (settings.numBlocks) {
+        queryArr.push('numBlocks=' + settings.numBlocks);
+      }
+      if (settings.tappingSecs) {
+        queryArr.push('tappingSecs=' + settings.tappingSecs);
+      }
+      if (settings.restSecs) {
+        queryArr.push('restSecs=' + settings.restSecs);
+      }
+      if (settings.hand) {
+        queryArr.push('hand=' + settings.hand);
+      }
+
+      const queryStr =
+        (queryArr.length === 0 ? '' : ('?' + queryArr.join('&')));
+
+      window.history.replaceState(
+        {},
+        '',
+        window.location.pathname + queryStr + window.location.hash);
+    }
+
+    Node.prototype.replaceAllChildren_ = function (...childNodes) {
+      this.innerHTML = '';
+      for (const childNode of childNodes) {
+        this.appendChild(childNode);
+      }
+    }
+
+    function populateSequenceProgressCanvas() {
+      const canvas = document.getElementById('sequenceProgressCanvas');
+      const context = canvas.getContext('2d');
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      context.lineWidth = 3;
+
+      for (let i = 0; i < 5; ++i) {
+        context.beginPath();
+        context.ellipse(100 * i + 30, 20, 25, 15, 0, 0, 2 * Math.PI);
+        if (i < currSeq.length) {
+          context.fill();
+        } else {
+          context.stroke();
+        }
+      }
+    }
+
+    function onParticipantKeyPress(event) {
+      if (event.key < '0' || event.key > '9') {
+        return;
+      }
+
+      currSeq += event.key;
+      populateSequenceProgressCanvas();
+
+      if (currSeq.length === settings.sequence.length) {
+        if (currSeq === settings.sequence) {
+          ++currBlockSeqCount;
+        }
+        currSeq = '';
+        window.setTimeout(populateSequenceProgressCanvas, 200);
+      }
+
+      event.preventDefault();
+    }
+
+    function showSecsLeftUntilTapping(secsLeft) {
+      document.getElementById('participantView-rest-counter')
+        .replaceAllChildren_(document.createTextNode(secsLeft));
+    }
+
+    function showParticipantRestView(secsUntilTapping) {
+      console.log(
+        `Showing rest view; ${secsUntilTapping} seconds until tapping.`);
+
+      document.getElementById('participantView-rest')
+        .classList.toggle('hidden', false);
+
+      window.setTimeout(showParticipantTappingView, secsUntilTapping * 1000);
+
+      const counterDiv =
+        document.getElementById('participantView-rest-counter');
+
+      for (let secsLeft = 1; secsLeft < secsUntilTapping; ++secsLeft) {
+        const secsLeft_ = secsLeft;
+        window.setTimeout(
+          () => showSecsLeftUntilTapping(secsLeft_),
+          (secsUntilTapping - secsLeft) * 1000
+        );
+      }
+
+      showSecsLeftUntilTapping(secsUntilTapping);
+    }
+
+    function showParticipantTappingView() {
+      ++currBlockNum;
+      currBlockSeqCount = 0;
+      currSeq = '';
+
+      console.log(`Beginning tapping for block #${currBlockNum}.`);
+
+      populateSequenceProgressCanvas();
+
+      document.getElementById('participantView-statusDisplay')
+        .replaceAllChildren_(document.createTextNode(`block #${currBlockNum}`));
+
+      document.getElementById('participantView-rest')
+        .classList.toggle('hidden', true);
+
+      window.addEventListener('keydown', onParticipantKeyPress);
+
+      window.setTimeout(
+        finishParticipantTappingView, settings.tappingSecs * 1000);
+    }
+
+    function finishParticipantTappingView() {
+      console.log(
+        `Done tapping for block #${currBlockNum}.`
+        + ` Had ${currBlockSeqCount} successful sequence(s).`
+      );
+
+      blockSeqCounts.push(currBlockSeqCount);
+
+      window.removeEventListener('keydown', onParticipantKeyPress);
+
+      if (currBlockNum < settings.numBlocks) {
+        showParticipantRestView(settings.restSecs);
+      } else {
+        showResultsView();
+      }
+    }
+
+    function showParticipantView() {
+      const rootDiv = document.getElementById('rootDiv');
+      const sequenceDisplay = document.getElementById('sequenceDisplay');
+      const participantView = document.getElementById('participantView');
+
+      sequenceDisplay.appendChild(
+        document.createTextNode(settings.sequence.split('').join('-')));
+
+      populateSequenceProgressCanvas();
+
+      document.getElementById(settings.hand === 'right' ? 'rightHandImg' : 'leftHandImg')
+        .classList.toggle('hidden', false);
+
+      showParticipantRestView(5); // five seconds' warning
+
+      rootDiv.replaceAllChildren_(participantView);
+    }
+
+    function showResultsView() {
+      const rootDiv = document.getElementById('rootDiv');
+      const resultsView = document.getElementById('resultsView');
+      const resultsBox = document.getElementById('resultsBox');
+
+      resultsBox.value = blockSeqCounts.join('\t');
+
+      rootDiv.replaceAllChildren_(resultsView);
+    }
+
+    window.addEventListener('load', function () {
+      const rootDiv = document.getElementById('rootDiv');
+
+      updateInputsFromUrl();
+
+      function onAnyChange() {
+        validateInputsAndUpdateSettings();
+        updateUrlFromSettings();
+      }
+
+      onAnyChange();
+
+      const inputs = [
+        document.getElementById('sequenceInput'),
+        document.getElementById('numBlocksInput'),
+        document.getElementById('tappingSecsInput'),
+        document.getElementById('restSecsInput'),
+        document.getElementById('leftHandInput'),
+        document.getElementById('rightHandInput'),
+      ];
+
+      for (const input of inputs) {
+        input.addEventListener('keydown', onAnyChange);
+        input.addEventListener('keyup', onAnyChange);
+        input.addEventListener('change', onAnyChange);
+      }
+
+      document.getElementById('settingsForm').addEventListener(
+        'submit',
+        function (event) {
+          showParticipantView();
+          event.preventDefault();
+        }
+      );
+
+      rootDiv.replaceAllChildren_(document.getElementById('settingsView'));
+    });
+   // ]]>
+  </script>
+ </head>
+ <body>
+  <div id="rootDiv">
+   If you're seeing this message, then something has gone wrong: maybe you need
+   to enable JavaScript in your browser, or maybe there's a bug in this page, or
+   maybe this page depends on some functionality that your browser doesn't have.
+  </div>
+
+  <div id="elementsInWaiting">
+
+   <div id="settingsView">
+    <form id="settingsForm">
+     <p class="inputHolder">
+      <label for="sequenceInput">Sequence:</label>
+      <input name="sequence" id="sequenceInput" size="10" maxLength="6" />
+      <span class="inputDesc">
+       the sequence to tap (five digits in the range 1-4), e.g. <tt>41324</tt>
+      </span>
+     </p>
+
+     <p class="inputHolder">
+      Hand:
+      &nbsp;
+      <input type="radio" name="hand" value="left" id="leftHandInput" />
+      <label for="leftHandInput">left</label>
+      &nbsp;
+      <input type="radio" name="hand" value="right" id="rightHandInput" />
+      <label for="rightHandInput">right</label>
+      &nbsp;
+      <span class="inputDesc">
+       which hand the participant will use (normally the non-dominant hand)
+      </span>
+     </p>
+
+     <p class="inputHolder">
+      <label for="numBlocksInput">Number of Blocks:</label>
+      <input name="numBlocks" id="numBlocksInput" size="10" maxLength="3" />
+      <span class="inputDesc">
+       the number of "blocks" (tapping/rest cycles), e.g. <tt>12</tt>
+      </span>
+     </p>
+
+     <p class="inputHolder">
+      <label for="tappingSecsInput">Seconds of Tapping:</label>
+      <input name="tappingSecs" id="tappingSecsInput" size="10" maxLength="4" />
+      <span class="inputDesc">
+       the number of seconds of tapping in each "block", e.g. <tt>30</tt>
+      </span>
+     </p>
+
+     <p class="inputHolder">
+      <label for="restSecsInput">Seconds of Rest:</label>
+      <input name="restSecs" id="restSecsInput" size="10" maxLength="4" />
+      <span class="inputDesc">
+       the number of seconds of rest in each "block", e.g. <tt>30</tt>
+      </span>
+     </p>
+
+     <p>
+      <input type="submit" id="submitSettingsButton" value="Proceed . . ." />
+     </p>
+    </form>
+
+    <p id="copyrightNotice">
+     <i>© 2022 Ran Ari-Gur. This work is licensed under a <a rel="license"
+     href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons
+     Attribution-ShareAlike 4.0 International License</a>. <br />
+     The hand images are derived from images from
+     <a href="https://icons8.com/">icons8.com</a>, and are used in accordance
+     with <a href="https://icons8.com/license">their license</a>.
+    </p>
+   </div> <!-- end of settingsView -->
+
+
+   <div id="participantView">
+
+    <div id="participantView-sequenceBox">
+     <div id="sequenceDisplay"></div>
+     <canvas id="sequenceProgressCanvas" width="460" height="40"></canvas>
+    </div>
+
+    <div id="participantView-handBox">
+     <img src="left-hand.png" alt="" id="leftHandImg" class="hidden" />
+     <img src="right-hand.png" alt="" id="rightHandImg" class="hidden" />
+    </div>
+
+    <div id="participantView-statusDisplay">
+     TODO: show some status info here
+    </div>
+
+    <div id="participantView-rest">
+     <div id="participantView-rest-counter">
+     </div>
+    </div>
+   </div> <!-- end of participantView -->
+
+
+   <div id="resultsView">
+    Results:
+    <br />
+    <textarea id="resultsBox" readonly cols="80" rows="2"></textarea>
+   </div> <!-- end of resultsView -->
+
+  </div>
+ </body>
+</html>
