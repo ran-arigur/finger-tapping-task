@@ -1,6 +1,7 @@
 ## About the finger tapping task
 
-The finger tapping task (FTT) is a task used in psychological research.
+The finger tapping task (FTT) is a motor sequence learning task used in
+psychological research.
 
 Per [Nicola Cellini, "Memory Consolidation in Sleep Disorders" (2016)](https://www.researchgate.net/publication/308611509_Memory_Consolidation_in_Sleep_Disorders):
 
@@ -35,14 +36,19 @@ for her research on PTSD.
 ## Installing
 
 The simplest way to install this on a computer is to just copy the contents of
-the 'files' directory onto that computer.
+the 'files' directory
+([v1.html](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/files/v1.html),
+[left-hand.png](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/files/left-hand.png),
+and
+[right-hand.png](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/files/right-hand.png))
+onto that computer.
 
 Alternatively, if you have access to a web server, you can put the files there
-and access them over the web. (This may be more convenient if you intend to use
-it on multiple computers.)
+and access them over the web. (That may be more convenient if you intend to use
+this on multiple computers.)
 
-After installing it, please try it out to make sure everything works as desired
-on your desired system.
+After installing, please try it out to make sure everything works as desired on
+your desired system.
 
 ## Using
 
@@ -67,10 +73,16 @@ A few notes:
 
 ## Modifying
 
-This project is licensed under a Creative Commons Attribution-ShareAlike 4.0
-International License (CC BY-SA 4.0), which gives you permission to share and
-adapt it, provided that you comply with certain terms, as explained at
-<https://creativecommons.org/licenses/by-sa/4.0/>.
+The contents of this project are copyrighted, but are licensed to you under
+CC BY-SA 4.0, so you are permitted to share and adapt them, provided that you
+comply with certain terms; please see the LICENSE file in this directory for
+details.
 
 If you make any improvements that you think other users might benefit from, I
 would welcome a pull request.
+
+## Authorship
+
+For full authorship information, please see the LICENSE file in this directory.
+The short version is that this project is by me (Ran Ari-Gur), with the 'hand'
+images being adapted from an icon by [@fontawesome](https://fontawesome.com).
