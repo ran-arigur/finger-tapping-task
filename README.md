@@ -34,9 +34,11 @@ for her research on PTSD.
 
 ## Installing
 
-The simplest way to install this on a computer is to just copy the HTML file
-([v1.html](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/v1.html))
-onto that computer.
+The simplest way to install this on a computer is to just save the HTML file
+onto that computer. (You can do that from
+<https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/finger-tapping-task.html>,
+using your browser's 'Save as...' or 'Save page as...' feature, making sure to
+save it as an HTML file.)
 
 Alternatively, if you have access to a web server, you can put the file there
 and access it over the web. (That may be more convenient if you intend to use
