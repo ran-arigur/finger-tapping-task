@@ -14,11 +14,10 @@ Per [Nicola Cellini, "Memory Consolidation in Sleep Disorders" (2016)](https://w
 
 ## About this project
 
-This project is an implementation of the finger tapping task as an HTML file
-(plus images), so that installation is trivial and doesn't require any special
-privileges.
+This project is an implementation of the finger tapping task as an HTML file, so
+that installation is trivial and doesn't require any special privileges.
 
-The HTML file contains three "views":
+The page contains three "views", presented in sequence:
 
 1. First, a researcher-facing view where the investigator can select various
    settings (the sequence; left hand vs. right hand; number of blocks in the
@@ -35,16 +34,12 @@ for her research on PTSD.
 
 ## Installing
 
-The simplest way to install this on a computer is to just copy the contents of
-the 'files' directory
-([v1.html](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/files/v1.html),
-[left-hand.png](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/files/left-hand.png),
-and
-[right-hand.png](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/files/right-hand.png))
+The simplest way to install this on a computer is to just copy the HTML file
+([v1.html](https://raw.githubusercontent.com/ran-arigur/finger-tapping-task/main/v1.html))
 onto that computer.
 
-Alternatively, if you have access to a web server, you can put the files there
-and access them over the web. (That may be more convenient if you intend to use
+Alternatively, if you have access to a web server, you can put the file there
+and access it over the web. (That may be more convenient if you intend to use
 this on multiple computers.)
 
 After installing, please try it out to make sure everything works as desired on
@@ -52,7 +47,7 @@ your desired system.
 
 ## Using
 
-Once you've installed this, you can use it by opening the v1.html file in your
+Once you've installed this, you can use it by opening the HTML file in your
 preferred web browser (e.g. Firefox or Chrome).
 
 A few notes:
